@@ -80,7 +80,7 @@
           {{ kafka_path }}/kafka-console-consumer.sh --bootstrap-server {{ kafka_host }}:9092 --topic {{ log_labels }}-audit --max-messages 10 > {{ external_server_logs_path }}/kafka/audit.txt
           {{ kafka_path }}/kafka-console-consumer.sh --bootstrap-server {{ kafka_host }}:9092 --topic {{ log_labels }}-infrastructure --max-messages 10 > {{ external_server_logs_path }}/kafka/infrastructure.txt
           {{ kafka_path }}/kafka-console-consumer.sh --bootstrap-server {{ kafka_host }}:9092 --topic {{ log_labels }}-application --max-messages 10 > {{ external_server_logs_path }}/kafka/application.txt
-        async: 30
+        async: 60
         poll: 5
 
       - name: Copy the logs file from Kafka to bastion
@@ -170,13 +170,18 @@
       - name: Save the logs on external Fluentd instance
         shell: |
           mkdir -p {{ external_server_logs_path }}/fluentd
-          docker exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-audit | shuf -n 10 > {{ external_server_logs_path }}/fluentd/audit.txt
-          docker exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-infrastructure | shuf -n 10 > {{ external_server_logs_path }}/fluentd/infrastructure.txt
-          docker exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-application | shuf -n 10 > {{ external_server_logs_path }}/fluentd/application.txt
+          podman exec -it {{ container_id.stdout }} mkdir fluentd/log
+          podman exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-audit | shuf -n 10 > {{ external_server_logs_path }}/fluentd/audit.txt
+          podman exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-infrastructure | shuf -n 10 > {{ external_server_logs_path }}/fluentd/infrastructure.txt
+          podman exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-application | shuf -n 10 > {{ external_server_logs_path }}/fluentd/application.txt
           sleep 10s
-          podman exec {{ container_id.stdout }} rm -rf /fluentd/log/
-        async: 60
-        poll: 5
+          #cd {{ external_server_logs_path }}/fluentd | ll | awk '{if ($5 == "0" ) print $9}' | wc -l
+        register: logs
+        until: logs.stdout|int == 0
+        retries: 5
+        delay: 60
+          #podman exec {{ container_id.stdout }} rm -rf /fluentd/log/
+        ignore_errors: false
 
       - name: Copy the logs file from Fluentd to bastion
         fetch:
