@@ -80,7 +80,7 @@
           {{ kafka_path }}/kafka-console-consumer.sh --bootstrap-server {{ kafka_host }}:9092 --topic {{ log_labels }}-audit --max-messages 10 > {{ external_server_logs_path }}/kafka/audit.txt
           {{ kafka_path }}/kafka-console-consumer.sh --bootstrap-server {{ kafka_host }}:9092 --topic {{ log_labels }}-infrastructure --max-messages 10 > {{ external_server_logs_path }}/kafka/infrastructure.txt
           {{ kafka_path }}/kafka-console-consumer.sh --bootstrap-server {{ kafka_host }}:9092 --topic {{ log_labels }}-application --max-messages 10 > {{ external_server_logs_path }}/kafka/application.txt
-        async: 60
+        async: 300
         poll: 5
 
       - name: Copy the logs file from Kafka to bastion
@@ -126,6 +126,8 @@
         curl -XGET "{{ elasticsearch_server_url }}/infra*/_search" -H 'Content-Type: application/json' -d '{ "query": { "bool": { "must": [ { "match":{"openshift.labels.logs":"{{ log_labels }}-infrastructure"} } ] } } }' > {{ cl_log_dir }}/elasticsearch/infrastructure.txt
         curl -XGET "{{ elasticsearch_server_url }}/audit*/_search" -H 'Content-Type: application/json' -d '{ "query": { "bool": { "must": [ { "match":{"openshift.labels.logs":"{{ log_labels }}-audit"} } ] } } }' > {{ cl_log_dir }}/elasticsearch/audit.txt
         curl -XGET "{{ elasticsearch_server_url }}/app*/_search" -H 'Content-Type: application/json' -d '{ "query": { "bool": { "must": [ { "match":{"openshift.labels.logs":"{{ log_labels }}-application"} } ] } } }' > {{ cl_log_dir }}/elasticsearch/application.txt
+      async: 300
+      poll: 5
       when: elasticsearch_server_url is defined
 
     # Fetch logs from Loki
@@ -134,6 +136,8 @@
         curl -G -s "{{ loki_server_url }}/api/prom/query" --data-urlencode 'query={log_type="infrastructure"}' > {{ cl_log_dir }}/loki/infrastructure.txt
         curl -G -s "{{ loki_server_url }}/api/prom/query" --data-urlencode 'query={log_type="audit"}' > {{ cl_log_dir }}/loki/audit.txt
         curl -G -s "{{ loki_server_url }}/api/prom/query" --data-urlencode 'query={log_type="application"}' > {{ cl_log_dir }}/loki/application.txt
+      async: 300
+      poll: 5
       when: loki_server_url is defined
 
     # Deleting CLF Custom Resource instance because Fluentd and CloudWatch stores the logs on their system
@@ -174,7 +178,9 @@
           podman exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-audit | shuf -n 10 > {{ external_server_logs_path }}/fluentd/audit.txt
           podman exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-infrastructure | shuf -n 10 > {{ external_server_logs_path }}/fluentd/infrastructure.txt
           podman exec -it {{ container_id.stdout }} cat fluentd/log/data.log | grep {{ log_labels }}-application | shuf -n 10 > {{ external_server_logs_path }}/fluentd/application.txt
-          sleep 10s
+        async: 300
+        poll: 5
+          #sleep 10s
           #cd {{ external_server_logs_path }}/fluentd | ll | awk '{if ($5 == "0" ) print $9}' | wc -l
         register: logs
         until: logs.stdout|int == 0

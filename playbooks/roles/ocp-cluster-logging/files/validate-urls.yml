@@ -42,7 +42,7 @@
   register: host_and_port
   ignore_errors: yes
   loop:
-    - "{{ syslog_url | default('1.1.1.1:6514', true)}}}}"
+    - "{{ syslog_url | default('1.1.1.1:514', true)}}}}"
     - "{{ fluentd_url | default('1.1.1.1:24224', true)}} }}"
     - "{{ kafka_url | default('1.1.1.1:9092', true)}}}}"
 
@@ -86,10 +86,10 @@
       msg: "Elasticsearch URL is invalid or unreachable"
     when: elasticsearch_url != "" and elasticsearch_url != None and elasticsearch_server_url is undefined
 
-  - name: Fail if Syslog URL is unreachable
-    fail:
-      msg: "Syslog URL is invalid or unreachable"
-    when: syslog_url != "" and syslog_url != None and syslog_server_url is undefined
+      #- name: Fail if Syslog URL is unreachable
+      #fail:
+      #msg: "Syslog URL is invalid or unreachable"
+      #when: syslog_url != "" and syslog_url != None and syslog_server_url is undefined
 
   - name: Fail if Fluentd URL is unreachable
     fail:
